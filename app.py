@@ -86,3 +86,87 @@ with col2:
 
     st.write("Top rows:")
     st.dataframe(filtered[["MedInc", "MedHouseValue", "Latitude", "Longitude"]].head(10))
+
+st.markdown("---")
+st.header(task)
+
+X = df.drop(columns=["MedHouseValue"])
+y = df["MedHouseValue"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=t_size, random_state=42)
+
+if task == "Regression":
+    st.write("Comparing linear models")
+
+    lin = LinearRegression()
+    lin.fit(X_train, y_train)
+    pred_lin = lin.predict(X_test)
+
+    scaler = StandardScaler()
+    X_train_s = scaler.fit_transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
+    ridge = Ridge(alpha=1.0)
+    ridge.fit(X_train_s, y_train)
+    pred_ridge = ridge.predict(X_test_s)
+
+    lasso = Lasso(alpha=0.1)
+    lasso.fit(X_train_s, y_train)
+    pred_lasso = lasso.predict(X_test_s)
+
+    results = pd.DataFrame({
+        "Model": ["Linear", "Ridge", "Lasso"],
+        "RMSE": [np.sqrt(mean_squared_error(y_test, pred_lin)), 
+                 np.sqrt(mean_squared_error(y_test, pred_ridge)), 
+                 np.sqrt(mean_squared_error(y_test, pred_lasso))],
+        "R2": [r2_score(y_test, pred_lin), 
+               r2_score(y_test, pred_ridge), 
+               r2_score(y_test, pred_lasso)]
+    })
+    
+    st.dataframe(results.round(4))
+
+    fig, ax = plt.subplots()
+    ax.scatter(y_test, pred_lin, s=3, alpha=0.3)
+    ax.set_xlabel("Actual")
+    ax.set_ylabel("Predicted")
+    ax.set_title("Linear Regression")
+    st.pyplot(fig)
+
+    st.write("Coefficients:")
+    coefs = pd.DataFrame({"Feature": X.columns, "Coef": lin.coef_})
+    coefs['AbsCoef'] = coefs['Coef'].abs()
+    coefs = coefs.sort_values("AbsCoef", ascending=False)
+    st.bar_chart(coefs.set_index("Feature")['Coef'])
+
+elif task == "Classification":
+    st.write("Expensive (1) if value > median, else Affordable (0)")
+
+    y_bin = (df["MedHouseValue"] > median_val).astype(int)
+
+    x_tr, x_te, y_tr, y_te = train_test_split(X, y_bin, test_size=t_size, random_state=42)
+
+    scaler2 = StandardScaler()
+    x_tr_s = scaler2.fit_transform(x_tr)
+    x_te_s = scaler2.transform(x_te)
+
+    logreg = LogisticRegression(max_iter=1000)
+    logreg.fit(x_tr_s, y_tr)
+    pred_log = logreg.predict(x_te_s)
+
+    tree = DecisionTreeClassifier(random_state=42)
+    tree.fit(x_tr, y_tr)
+    pred_tree = tree.predict(x_te)
+
+    results_clf = pd.DataFrame({
+        "Model": ["Logistic", "Decision Tree"],
+        "Accuracy": [accuracy_score(y_te, pred_log), accuracy_score(y_te, pred_tree)],
+        "F1": [f1_score(y_te, pred_log), f1_score(y_te, pred_tree)]
+    })
+    
+    st.dataframe(results_clf.round(4))
+
+    st.write("Class counts:")
+    counts = y_bin.value_counts()
+    counts.index = ["Affordable", "Expensive"]
+    st.bar_chart(counts)
