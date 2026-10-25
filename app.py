@@ -170,3 +170,33 @@ elif task == "Classification":
     counts = y_bin.value_counts()
     counts.index = ["Affordable", "Expensive"]
     st.bar_chart(counts)
+elif task == "Clustering":
+    st.write("KMeans on standardized features")
+
+    sc = StandardScaler()
+    X_scaled = sc.fit_transform(X)
+
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X_scaled)
+
+    k = st.slider("Number of clusters", 2, 8, 4)
+    km = KMeans(n_clusters=k, random_state=42, n_init=10)
+    labels = km.fit_predict(X_scaled)
+
+    sil = silhouette_score(X_scaled, labels)
+    
+    c1, c2 = st.columns(2)
+    c1.metric("Silhouette", round(sil, 4))
+    c2.metric("Inertia", int(km.inertia_))
+
+    fig2, ax2 = plt.subplots()
+    ax2.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap="viridis", s=4)
+    st.pyplot(fig2)
+
+    st.write("Map view")
+    mapdata = df[["Latitude", "Longitude"]].copy()
+    mapdata = mapdata.rename(columns={"Latitude": "lat", "Longitude": "lon"})
+    st.map(mapdata)
+
+st.markdown("---")
+st.caption("AML601 project - Streamlit dashboard")
